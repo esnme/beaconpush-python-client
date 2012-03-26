@@ -155,8 +155,8 @@ class Client(object):
         if not user_ids:
             return
 
-        user_ids = [self._user_id_to_channel_name(userId) for userId in user_ids]
-        self.send_to_channels(message, user_ids)
+        channel_names = [self._user_id_to_channel_name(userId) for userId in user_ids]
+        self._send_to_channels_internal(message, channel_names)
 
     def send_to_channels(self, message, channel_names):
         """
@@ -176,6 +176,9 @@ class Client(object):
         for channel_name in channel_names:
             self._verify_channel_name(channel_name)
 
+        self._send_to_channels_internal(message, channel_names)
+
+    def _send_to_channels_internal(self, message, channel_names):
         greenlets = []
         clients_and_channels = self._route_channels(channel_names) # {client, [channel_name]}
 
