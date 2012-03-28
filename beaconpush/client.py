@@ -3,7 +3,6 @@ import re, time, hmac, gevent, logging, hashlib
 from zlib import adler32
 
 from beaconpush.socketpool import MultiHostSocketPool
-from gevent.greenlet import joinall as join_all_greenlets
 
 logger = logging.getLogger("beaconpush.client")
 
@@ -412,7 +411,7 @@ class Client(object):
         the greenlets and calling their get() after this join will be perfectly safe.
         """
         try:
-            join_all_greenlets(greenlets, timeout=self.timeout, raise_error=True)
+            gevent.joinall(greenlets, timeout=self.timeout, raise_error=True)
         except:
-            logger.exception("Beaconpush result error.")
+            logger.exception("Result error.")
             del greenlets[:]
