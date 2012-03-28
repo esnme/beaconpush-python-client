@@ -100,9 +100,9 @@ class SocketPool(object):
                 pass
 
             if failed:
-                logger.debug("Disposing connection instead of returning to pool since an exception occured: %r" % (self.addr, ))
+                logger.critical("Exception occurred, disposing connection to %r" % (self.addr, ))
             if idle:
-                logger.trace("Disconnected idle connection to %r, %d sockets still connected" % (self.addr, self.connected_sockets))
+                logger.debug("Disconnected idle connection to %r, %d sockets still connected" % (self.addr, self.connected_sockets))
         else:
             self.last_release[sock] = time.time()
             self.free_sockets.put_nowait(sock)
