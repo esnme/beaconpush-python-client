@@ -1,9 +1,11 @@
 # coding=UTF-8
-import logging
 import gevent
 import gevent.pool
-import random
 from gevent import socket
+from gevent.greenlet import Greenlet
+from gevent.queue import Full
+import logging
+import random
 
 class Event(object):
     def __init__(self, operator_id, name, user_id, channel):
@@ -12,22 +14,48 @@ class Event(object):
         self.user_id = user_id
         self.channel = channel
 
+    def __str__(self):
+        return "%s\t%s\t%s\t%s\r\n" % (self.operator_id, self.name, self.user_id, self.channel)
+
     def __repr__(self):
         return "Event(operator_id=%s, name=%s, user_id=%s, channel=%s)" % (self.operator_id, self.name, self.user_id, self.channel)
 
 class EventClient():
     host = None
     port = 6051
+    max_event_size = 1000
+    _spawn = Greenlet.spawn
 
-    def __init__(self, host, event_handler, port=6051):
+    def __init__(self, host, port=6051, handle=None, spawn=20):
+        if handle is None:
+            raise TypeError("'handle' must be provided")
+
         self.host = host
         self.port = port
-        self.event_handler = event_handler
+        self.handle = handle
+        self.set_spawn(spawn)
+        self.sock = None
         self.logger = logging.getLogger("beaconpush.eventclient.%s:%d" % (host, port))
         self.connect_timeout = 5
         self._event_receiver_task = None
-        self.events_received = gevent.queue.Queue()
-        gevent.spawn(self._event_dispatcher)
+        self.pool = None # Pool used to execute event handlers in
+
+    def set_spawn(self, spawn):
+        if spawn == 'default':
+            self.pool = None
+            self._spawn = self._spawn
+        elif hasattr(spawn, 'spawn'):
+            self.pool = spawn
+            self._spawn = spawn.spawn
+        elif isinstance(spawn, (int, long)):
+            from gevent.pool import Pool
+            self.pool = Pool(spawn)
+            self._spawn = self.pool.spawn
+        else:
+            self.pool = None
+            self._spawn = spawn
+        if hasattr(self.pool, 'full'):
+            self.full = self.pool.full
 
     def connect(self):
         self.logger.debug("Connecting...")
@@ -38,17 +66,25 @@ class EventClient():
 
             if not self._event_receiver_task:
                 self._event_receiver_task = gevent.spawn(self._event_receiver)
+            gevent.sleep() # Yield for our event receiver
         except socket.error as e:
             self.logger.error("Unable to connect. Reason: '%s'" % e)
             self.reconnect()
 
     def disconnect(self):
+        if not self.sock:
+            return
+
         self.logger.debug("Disconnecting...")
         self.sock.close()
         self.sock = None
         self.logger.debug("Disconnected!")
 
     def reconnect(self):
+        if not self.sock:
+            self.logger.debug("Skipping reconnect because disconnect() was explicitly called.")
+            return
+
         self.backoff += random.randint(3, 6) # Add some jitter to timeout to prevent thundering herd
         self.backoff = min(self.backoff, 60)
         self.logger.warn("Reconnecting in %d seconds..." % self.backoff)
@@ -59,7 +95,7 @@ class EventClient():
         self.logger.debug("Event receiver started.")
 
         buffer = ""
-        while True:
+        while self.sock:
             # FIXME: What if we receive a read timeout?
             data = self.sock.recv(1024)
             if not data:
@@ -77,13 +113,15 @@ class EventClient():
                     self.logger.error("Received event has not 4 arguments. Event '%s'" % line)
 
                 e = Event(*args)
-                self.logger.debug("Received %s" % e)
-                self.events_received.put_nowait(e)
+                #self.logger.debug("Received %s" % e)
+                self._dispatch_event(e)
 
         self.logger.debug("Event receiver finished.")
+        self._event_receiver_task = None
 
-    def _event_dispatcher(self):
-        # Do we really this? Can't we dispatch inside _event_receiver?
-        while True:
-            e = self.events_received.get()
-            self.event_handler(e)
+    def _dispatch_event(self, *args):
+        spawn = self._spawn
+        if spawn is None:
+            self.handle(*args)
+        else:
+            spawn(self.handle, *args)
