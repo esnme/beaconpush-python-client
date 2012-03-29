@@ -3,7 +3,6 @@ import gevent
 import gevent.pool
 from gevent import socket
 from gevent.greenlet import Greenlet
-from gevent.queue import Full
 import logging
 import random
 
@@ -96,11 +95,14 @@ class EventClient():
 
         buffer = ""
         while self.sock:
-            # FIXME: What if we receive a read timeout?
-            data = self.sock.recv(1024)
-            if not data:
-                self.logger.warn("Unexpected disconnect.")
-                self.reconnect()
+            try:
+                data = self.sock.recv(1024)
+                if not data:
+                    self.logger.warn("Unexpected disconnect.")
+                    self.reconnect()
+                    continue
+            except socket.timeout as e:
+                # A read timeout occurred, just try reading again
                 continue
 
             buffer += data

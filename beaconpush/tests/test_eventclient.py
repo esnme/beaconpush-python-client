@@ -1,9 +1,8 @@
-import sys
+import socket; socket.setdefaulttimeout(1)
 import logging
 import unittest
 import gevent
-from gevent.server import StreamServer
-from gevent.socket import socket
+
 from beaconpush import EventClient
 from beaconpush.eventclient import Event
 from beaconpush.tests import MockedEventServer
