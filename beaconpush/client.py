@@ -222,7 +222,7 @@ class Client(object):
         @param user_ids: List of strings representing user IDs that consists of [a-zA-Z0-9._].
         @returns a dict with a boolean mapping for each userId
         """
-        if type(user_ids) == list:
+        if not type(user_ids) == list:
             user_ids = [user_ids]
 
         clients = self._route_users(user_ids)
