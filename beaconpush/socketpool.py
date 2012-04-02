@@ -7,7 +7,7 @@ from thrift.protocol.TBinaryProtocol import TBinaryProtocol
 from thrift.transport import TSocket
 from thrift.transport.TTransport import TFramedTransport
 
-from beaconpush.thrift import BackendService
+from beaconpush.generated_thrift import BackendService
 
 logger = logging.getLogger("beaconpush.socketpool")
 
