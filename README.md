@@ -24,7 +24,7 @@ But for now, the following steps do the job:
 1. Update the version number inside the module (follow semantic versioning).
 1. Make sure the new version number is reflected by running ```python setup.py --version```.
 1. Commit your change of version.
-1. Tag your new commit as a stable version. You can do this by running ```git tag $(setup.py --version)```
+1. Tag your new commit as a stable version. You can do this by running ```git tag $(python setup.py --version)```
 1. Run ```python setup.py clean sdist``` to create a source distribution.
 1. Upload this to your Python repository (we run an internal PyPI repo at ESN requiring you to upload the sdist yourself)
 1. Set the new development version to be used and commit the change.
