@@ -1,7 +1,6 @@
-import sys
+import socket
 import gevent
 from gevent.server import StreamServer
-import socket
 
 def find_unused_port(family=socket.AF_INET, socktype=socket.SOCK_STREAM):
         """Copied from the gevent tests"""
@@ -54,3 +53,19 @@ class MockedEventServer(object):
 
     def send(self, raw_event):
         self.events_to_send.put_nowait(raw_event)
+
+def monkeypatch_teamcity_runner():
+    try:
+        import unittest
+        from teamcity import underTeamcity
+        from teamcity.unittestpy import TeamcityTestRunner
+        runner = TeamcityTestRunner() if underTeamcity() else unittest.TextTestRunner()
+        org_main = unittest.main
+        def monkey_patch(*args, **kwargs):
+            kwargs['testRunner'] = runner
+            org_main(*args, **kwargs)
+
+        unittest.main = monkey_patch
+    except ImportError:
+        print "Missing teamcity-messages package for running tests in Teamcity."
+        print "Refusing to even try enabling it!"

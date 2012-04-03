@@ -6,9 +6,22 @@ It only works with the On-Site edition.
 """
 
 from setuptools import setup, Command
+import beaconpush
 
-# Follows semantic versioning http://semver.org/
-version = '0.9.0'
+class monkeypatch_teamcity(Command):
+    description = "Monkeypatch unittest runner to enable TeamCity test output"
+    user_options = []
+    def initialize_options(self): pass
+    def finalize_options(self): pass
+    def run(self):
+        from beaconpush.tests import monkeypatch_teamcity_runner
+        from setuptools.command.test import test
+        org_run_tests = test.run_tests
+        def monkeypatch(*args, **kwargs):
+            monkeypatch_teamcity_runner()
+            org_run_tests(*args, **kwargs)
+
+        test.run_tests = monkeypatch
 
 class run_audit(Command):
     """
@@ -50,7 +63,7 @@ class run_audit(Command):
 
 setup(
     name='beaconpush-client',
-    version=version,
+    version=beaconpush.__version__,
     url='http://beaconpush.com',
     description="Client for Beaconpush real-time messaging server.",
     long_description=__doc__,
@@ -70,7 +83,8 @@ setup(
     packages=['beaconpush', 'beaconpush.generated_thrift'],
     include_package_data=True,
     zip_safe=True,
-    install_requires=['distribute', 'gevent>=0.13.6', 'thrift>=0.8.0'],
+    install_requires=['distribute', 'gevent>=0.13.0', 'thrift>=0.8.0'],
+    tests_require=['teamcity-messages >= 1.6'],
     test_suite='beaconpush.tests',
-    cmdclass={'audit': run_audit}
+    cmdclass={'audit': run_audit, 'monkeypatch_teamcity': monkeypatch_teamcity}
 )
