@@ -38,6 +38,8 @@ class EventClient():
         self.connect_timeout = 5
         self._event_receiver_task = None
         self.pool = None # Pool used to execute event handlers in
+        self.disconnect_called = False
+        self.backoff = 0
 
     def set_spawn(self, spawn):
         if spawn == 'default':
@@ -58,6 +60,7 @@ class EventClient():
 
     def connect(self):
         self.logger.debug("Connecting...")
+        self.disconnect_called = False
         try:
             self.sock = socket.create_connection((self.host, self.port), timeout=self.connect_timeout)
             self.logger.debug("Connected!")
@@ -71,6 +74,7 @@ class EventClient():
             self.reconnect()
 
     def disconnect(self):
+        self.disconnect_called = True
         if not self.sock:
             return
 
@@ -80,7 +84,7 @@ class EventClient():
         self.logger.debug("Disconnected!")
 
     def reconnect(self):
-        if not self.sock:
+        if self.disconnect_called:
             self.logger.debug("Skipping reconnect because disconnect() was explicitly called.")
             return
 
