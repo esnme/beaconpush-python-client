@@ -108,6 +108,10 @@ class EventClient():
             except socket.timeout as e:
                 # A read timeout occurred, just try reading again
                 continue
+            except socket.error as e:
+                self.logger.error("Error while reading socket. Reason: '%s'" % e)
+                self.reconnect()
+                continue
 
             buffer += data
             events = buffer.split("\r\n") # Unframe events from buffer
