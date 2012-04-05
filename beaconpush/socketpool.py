@@ -2,7 +2,7 @@
 from gevent import socket
 from gevent import queue
 import time, gevent, logging
-
+from Queue import Empty
 from thrift.protocol.TBinaryProtocol import TBinaryProtocol
 from thrift.transport import TSocket
 from thrift.transport.TTransport import TFramedTransport
@@ -24,6 +24,8 @@ class SocketPool(object):
         gevent.spawn(self.disconnect_idle_sockets_task)
         gevent.spawn(self.check_failed_connections)
 
+        self.logger = logging.getLogger("beaconpush.socketpool.%s:%d" % (addr))
+
     def check_failed_connections(self):
         while True:
             # We only process if we are in the failed state
@@ -40,12 +42,12 @@ class SocketPool(object):
                 pass
 
     def disconnect_idle_sockets_task(self):
-        while 1:
+        while True:
             gevent.sleep(2)
 
             try:
                 sock = self.free_sockets.get_nowait()
-            except:
+            except Empty:
                 continue
 
             released_at = self.last_release.get(sock, None)
@@ -80,8 +82,7 @@ class SocketPool(object):
             try:
                 sock = self.free_sockets.get(timeout=self.timeout)
             except Exception, e:
-                host, port = self.addr
-                logging.warn("Could not aquire socket for %s:%s, i waited for %s. Qsize: %s, Sockets: %s/%s." % (host, port, self.timeout, self.free_sockets.qsize(), self.connected_sockets, self.max_sockets))
+                self.logger.warn("Could not aquire socket, i waited for %s. Qsize: %s, Sockets: %s/%s." % (self.timeout, self.free_sockets.qsize(), self.connected_sockets, self.max_sockets))
                 raise
 
         return sock
@@ -90,7 +91,7 @@ class SocketPool(object):
         if failed or idle:
             try:
                 del self.last_release[sock]
-            except:
+            except KeyError:
                 pass
 
             self.connected_sockets -= 1
@@ -100,9 +101,9 @@ class SocketPool(object):
                 pass
 
             if failed:
-                logger.critical("Exception occurred, disposing connection to %r" % (self.addr, ))
+                self.logger.critical("Exception occurred, disposing connection.")
             if idle:
-                logger.debug("Disconnected idle connection to %r, %d sockets still connected" % (self.addr, self.connected_sockets))
+                self.logger.debug("Disconnected idle connection, %d sockets still connected" % (self.connected_sockets))
         else:
             self.last_release[sock] = time.time()
             self.free_sockets.put_nowait(sock)
