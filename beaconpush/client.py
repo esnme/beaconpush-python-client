@@ -112,7 +112,7 @@ class Client(object):
         """
         Creates a new Beaconpush Client instance
 
-        @param hosts: List of beaconpush servers
+        @param hosts: List or string of Beaconpush server(s)
         @param port: Optional Beaconpush server port. Defaults to 6052
         @param operator: Optional Beaconpush operator. Defaults to "default"
         @param sign_key: Optional Beaconpush sign key. Defaults to "BOGUS_KEY_REPLACE_THIS"
@@ -124,6 +124,9 @@ class Client(object):
         self.operator = operator
         self.sign_key = sign_key
         self.encoder = encoder
+
+        if not type(hosts) == list:
+            hosts = list(hosts)
 
         for host in hosts:
             self.add_client(host)
