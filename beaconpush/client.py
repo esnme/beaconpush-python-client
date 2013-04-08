@@ -1,10 +1,16 @@
 # coding=UTF-8
-import re, time, hmac, gevent, logging, hashlib
+import re
+import time
+import hmac
+import gevent
+import logging
+import hashlib
 from zlib import adler32
 
 from beaconpush.socketpool import MultiHostSocketPool
 
 logger = logging.getLogger("beaconpush.client")
+
 
 class IgnoreErrorClient(object):
     def __init__(self, client, error_return_value=None):
@@ -35,6 +41,7 @@ class IgnoreErrorClient(object):
     def __cmp__(self, other):
         return cmp(hash(self), hash(other))
 
+
 class NoClientClient(object):
     def __init__(self, returnValue = None):
         self._returnValue = returnValue
@@ -46,6 +53,7 @@ class NoClientClient(object):
         return call
 
 client_pool = MultiHostSocketPool(connect_timeout=5)
+
 
 class Invocation(object):
     def __init__(self, host, port, operator, method_name):
@@ -68,7 +76,7 @@ class Invocation(object):
                 client = client_pool.acquire_socket(addr)
                 func = getattr(client, self.method_name)
                 return func(self.operator, *args, **kwargs)
-            except gevent.Timeout, t:
+            except gevent.Timeout:
                 failed = True
                 raise Exception("Beaconpush operation %s timed out after %d seconds" % (self.method_name, wait_time))
             except:
@@ -79,6 +87,7 @@ class Invocation(object):
                 client_pool.release_socket(addr, client, failed=failed)
 
         return gevent.spawn(dispatch)
+
 
 class ClientProxy(object):
     def __init__(self, host, port, operator):
@@ -96,6 +105,7 @@ USER_ID_PATTERN = re.compile(r"^[a-zA-Z0-9._\-]{1,128}$")
 CHANNEL_PATTERN = re.compile(r"^[#\*@]{1,2}[a-zA-Z0-9._\-]{1,128}$")
 CHANNEL_PREFIXES = set(["*", "#", "@"])
 
+
 class Client(object):
     """
     Methods in this class are used to communicate with Beaconpush.
@@ -112,11 +122,11 @@ class Client(object):
         """
         Creates a new Beaconpush Client instance
 
-        @param hosts: List or string of Beaconpush server(s)
-        @param port: Optional Beaconpush server port. Defaults to 6052
-        @param operator: Optional Beaconpush operator. Defaults to "default"
-        @param sign_key: Optional Beaconpush sign key. Defaults to "BOGUS_KEY_REPLACE_THIS"
-        @param encoder: Optional message encoder, function used to encode messages before sending to Beaconpush server.
+        :param hosts: List or string of Beaconpush server(s)
+        :param port: Optional Beaconpush server port. Defaults to 6052
+        :param operator: Optional Beaconpush operator. Defaults to "default"
+        :param sign_key: Optional Beaconpush sign key. Defaults to "BOGUS_KEY_REPLACE_THIS"
+        :param encoder: Optional message encoder, function used to encode messages before sending to Beaconpush server.
                         Should return string. Defaults to None
         """
         self.clients = []
@@ -133,23 +143,19 @@ class Client(object):
 
     def add_client(self, host):
         """
-        add_client(host)
-
         Adds a new client
 
-        @param host: Host to client
+        :param host: Host to client
         """
         self.clients.append(ClientProxy(host, self.port, self.operator))
         logger.log(logging.DEBUG, "Beaconpush backend client added: %s" % host)
 
     def send_to_users(self, message, user_ids):
         """
-        send_to_users(message, user_ids)
-
         Sends a message to multiple users.
 
-        @param message: Arbitrary message to send.
-        @param user_ids: List of channel names as strings to receive the message.
+        :param message: Arbitrary message to send.
+        :param user_ids: List of channel names as strings to receive the message.
         """
         if not type(user_ids) == list:
             user_ids = [user_ids]
@@ -162,12 +168,10 @@ class Client(object):
 
     def send_to_channels(self, message, channel_names):
         """
-        send_to_channels(message, channel_names)
-
         Send message to a multiple channels.
 
-        @param message: Arbitrary message to send.
-        @param channel_names: Tuple or list of channel names as strings to receive the message.
+        :param message: Arbitrary message to send.
+        :param channel_names: Tuple or list of channel names as strings to receive the message.
         """
         if not type(channel_names) == list:
             channel_names = [channel_names]
@@ -199,9 +203,10 @@ class Client(object):
         Retrieves a list of users currently subscribing to a channel. The users may or may not
         have actual connections.
 
-        @param channel_name: Channel name as string to get users for.
+        :param channel_name: Channel name as string to get users for.
+        :returns: A list of all user IDs in the specified channel
 
-        @returns A list of all user IDs in the specified channel
+        :rtype: list of str
         """
 
         clients = self._get_clients_for_channel(channel_name)
@@ -218,12 +223,12 @@ class Client(object):
 
     def get_users_online(self, user_ids):
         """
-        get_users_online(user_ids) -> [string]
-
         Query if selected users are online.
 
-        @param user_ids: List of strings representing user IDs that consists of [a-zA-Z0-9._].
-        @returns a dict with a boolean mapping for each userId
+        :param user_ids: List of strings representing user IDs that consists of [a-zA-Z0-9._].
+        :returns: a dict with a boolean mapping for each userId
+
+        :rtype: list of str
         """
         if not type(user_ids) == list:
             user_ids = [user_ids]
@@ -243,11 +248,11 @@ class Client(object):
 
     def get_num_users_online(self):
         """
-        get_num_users_online() -> int
-
         Get the number of connected users.
 
-        @returns Number of user IDs currently online.
+        :returns: Number of user IDs currently online.
+
+        :rtype: int
         """
         greenlets = [client.getNumUsersOnline() for client in self._get_clients()]
         self._join_all(greenlets)
@@ -262,19 +267,19 @@ class Client(object):
 
     def logout(self, user_id):
         """
-        logout(userId)
-
         Force logout for a user. This means closing all of the connections for the user
         and removing the user from the user pool.
 
-        @param user_id: User ID to query, a string representing a userId that consists of [a-zA-Z0-9._].
+        :param user_id: User ID to query, a string representing a userId that consists of [a-zA-Z0-9._].
         """
         for client in self._get_clients():
             client.logout(user_id)
 
     def generate_token(self, token_id, remote=False):
         """
-            @param token_id: user id/channel name
+        :param token_id: user id/channel name
+
+        :rtype: str
         """
         if remote:
             return self._generate_token_remote(token_id)
@@ -282,16 +287,25 @@ class Client(object):
             return self._generate_token_local(token_id)
 
     def _generate_token_local(self, token_id):
+        """
+        :rtype: str
+        """
         expire_time = int(time.time()) + self.token_ttl
         payload = "%s;%s" % (token_id, expire_time)
         signature = hmac.new(self.sign_key, payload, hashlib.sha1).hexdigest()
         return "%s;%s" % (expire_time, signature)
 
     def _generate_token_remote(self, token_id):
+        """
+        :rtype: str
+        """
         client = self._get_client(token_id)
         return client.generateToken(token_id).get()
 
     def _user_id_to_channel_name(self, user_id):
+        """
+        :rtype: str
+        """
         user_id = str(user_id)
         self._verify_user_id(user_id)
 
@@ -299,12 +313,12 @@ class Client(object):
 
     def _get_user_node_index(self, user_id):
         """
-        _get_user_node_index(user_id) -> int
-
         Given a userId, this function returns the node index where the user should connect/is connected.
 
-        @param user_id the user_id
-        @return the node index for the given user_id
+        :param user_id: the user_id
+        :returns: the node index for the given user_id
+
+        :rtype: int
         """
         try:
             return adler32(str(user_id)) % len(self.clients)
@@ -313,14 +327,14 @@ class Client(object):
 
     def _get_clients_for_channel(self, channel_name):
         """
-        _get_clients_for_channel(channel_name) -> [client]
-
         Given a channel_name, this function returns the clients connected to the nodes that handle the channel.
         The length of the list is 1 for local channels and user channels. For a global channel the length is
         equal to the total number of Beaconpush nodes.
 
-        @param channel_name the channel name
-        @return a list of clients
+        :param channel_name: the channel name
+        :returns: a list of clients
+
+        :rtype: list
         """
         if not channel_name or channel_name[0] == "*":
             # Channel name is empty or a global channel
@@ -330,6 +344,9 @@ class Client(object):
             return [self._get_client(channel_name)]
 
     def _get_clients(self, error_return_value=None):
+        """
+        :rtype: list
+        """
         clients = []
 
         # If no Beaconpush client are connected return the NoClientClient
@@ -355,13 +372,12 @@ class Client(object):
 
     def _route_channels(self, channel_names):
         """
-        _route_channels(channel_names) -> dict
-
         Groups channels with their appropriate Beaconpush client(s)
 
-        @param channel_names: a list of channel names
+        :param channel_names: a list of channel names
+        :returns: a mapped dict {client, [channels]}
 
-        @returns a mapped dict: {client, [channels]}
+        :rtype: dict of (,list of str)
         """
         routes = {}
         for channel_name in channel_names:
@@ -374,13 +390,12 @@ class Client(object):
 
     def _route_users(self, user_ids):
         """
-        _route_users(user_ids) -> dict
-
         Groups users with their appropriate Beaconpush client(s)
 
-        @param user_ids: a list of user ids
+        :param user_ids: a list of user ids
+        :returns: a mapped dict {client, [user_ids]}
 
-        @returns a mapped dict: {client, [user_ids]}
+        :rtype: dict of (,list of str)
         """
         routes = {}
         for user_id in user_ids:
@@ -395,15 +410,18 @@ class Client(object):
 
     def _validate_channel_prefix(self, channel_name):
         if channel_name[0] not in CHANNEL_PREFIXES:
-            raise Exception("Beaconpush channel name '%s' has invalid or missing prefix. See documentation for more info." % (channel_name, ))
+            raise Exception("Beaconpush channel name '%s' has invalid or missing prefix. "
+                            "See documentation for more info." % (channel_name, ))
 
     def _verify_user_id(self, user_id):
         if not USER_ID_PATTERN.match(user_id):
-            raise Exception("Invalid user ID given: '%s'. Must be '%s'. See documentation for more info." % (user_id, USER_ID_PATTERN.pattern))
+            raise Exception("Invalid user ID given: '%s'. Must be '%s'. See documentation for more info."
+                            % (user_id, USER_ID_PATTERN.pattern))
 
     def _verify_channel_name(self, channel_name):
         if not CHANNEL_PATTERN.match(channel_name):
-            raise Exception("Invalid channel name given: '%s'. Must be '%s'. See documentation for more info." % (channel_name, CHANNEL_PATTERN.pattern))
+            raise Exception("Invalid channel name given: '%s'. Must be '%s'. "
+                            "See documentation for more info." % (channel_name, CHANNEL_PATTERN.pattern))
 
     def _join_all(self, greenlets):
         """

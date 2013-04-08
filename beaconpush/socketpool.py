@@ -11,6 +11,7 @@ from beaconpush.generated_thrift import BackendService
 
 logger = logging.getLogger("beaconpush.socketpool")
 
+
 class SocketPool(object):
     def __init__(self, addr, max_sockets=40, idle_timeout=5.0, connect_timeout=10.0):
         self.addr = addr
@@ -24,7 +25,7 @@ class SocketPool(object):
         gevent.spawn(self.disconnect_idle_sockets_task)
         gevent.spawn(self.check_failed_connections)
 
-        self.logger = logging.getLogger("beaconpush.socketpool.%s:%d" % (addr))
+        self.logger = logging.getLogger("beaconpush.socketpool.%s:%d" % addr)
 
     def check_failed_connections(self):
         while True:
@@ -60,7 +61,7 @@ class SocketPool(object):
         if self.failed_state:
             raise Exception("Unable to establish connection since server %s:%s is in failed state." % self.addr)
 
-        self.connected_sockets += 1 # This must be done before creating connection to avoid races
+        self.connected_sockets += 1  # This must be done before creating connection to avoid races
         try:
             host, port = self.addr
 
@@ -81,8 +82,9 @@ class SocketPool(object):
         else:
             try:
                 sock = self.free_sockets.get(timeout=self.timeout)
-            except Exception, e:
-                self.logger.warn("Could not aquire socket, i waited for %s. Qsize: %s, Sockets: %s/%s." % (self.timeout, self.free_sockets.qsize(), self.connected_sockets, self.max_sockets))
+            except Exception:
+                self.logger.warn("Could not aquire socket, i waited for %s. Qsize: %s, Sockets: %s/%s."
+                                 % (self.timeout, self.free_sockets.qsize(), self.connected_sockets, self.max_sockets))
                 raise
 
         return sock
@@ -103,10 +105,12 @@ class SocketPool(object):
             if failed:
                 self.logger.critical("Exception occurred, disposing connection.")
             if idle:
-                self.logger.debug("Disconnected idle connection, %d sockets still connected" % (self.connected_sockets))
+                self.logger.debug("Disconnected idle connection, %d sockets still connected"
+                                  % (self.connected_sockets,))
         else:
             self.last_release[sock] = time.time()
             self.free_sockets.put_nowait(sock)
+
 
 class MultiHostSocketPool(SocketPool):
     def __init__(self, *args, **kwargs):

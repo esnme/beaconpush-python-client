@@ -6,6 +6,7 @@ from gevent.greenlet import Greenlet
 import logging
 import random
 
+
 class Event(object):
     def __init__(self, operator_id, name, user_id, channel):
         self.operator_id = operator_id
@@ -17,7 +18,9 @@ class Event(object):
         return "%s\t%s\t%s\t%s\r\n" % (self.operator_id, self.name, self.user_id, self.channel)
 
     def __repr__(self):
-        return "Event(operator_id=%s, name=%s, user_id=%s, channel=%s)" % (self.operator_id, self.name, self.user_id, self.channel)
+        return "Event(operator_id=%s, name=%s, user_id=%s, channel=%s)" % (self.operator_id, self.name,
+                                                                           self.user_id, self.channel)
+
 
 class EventClient():
     host = None
@@ -37,7 +40,7 @@ class EventClient():
         self.logger = logging.getLogger("beaconpush.eventclient.%s:%d" % (host, port))
         self.connect_timeout = 5
         self._event_receiver_task = None
-        self.pool = None # Pool used to execute event handlers in
+        self.pool = None  # Pool used to execute event handlers in
         self.disconnect_called = False
         self.backoff = 0
 
@@ -68,7 +71,7 @@ class EventClient():
 
             if not self._event_receiver_task:
                 self._event_receiver_task = gevent.spawn(self._event_receiver)
-            gevent.sleep() # Yield for our event receiver
+            gevent.sleep()  # Yield for our event receiver
         except socket.error as e:
             self.logger.error("Unable to connect. Reason: '%s'" % e)
             self.reconnect()
@@ -88,7 +91,7 @@ class EventClient():
             self.logger.debug("Skipping reconnect because disconnect() was explicitly called.")
             return
 
-        self.backoff += random.randint(3, 6) # Add some jitter to timeout to prevent thundering herd
+        self.backoff += random.randint(3, 6)  # Add some jitter to timeout to prevent thundering herd
         self.backoff = min(self.backoff, 60)
         self.logger.warn("Reconnecting in %d seconds..." % self.backoff)
         gevent.sleep(self.backoff)
@@ -97,7 +100,7 @@ class EventClient():
     def _event_receiver(self):
         self.logger.debug("Event receiver started.")
 
-        buffer = ""
+        buf = ""
         while self.sock:
             try:
                 data = self.sock.recv(1024)
@@ -105,22 +108,22 @@ class EventClient():
                     self.logger.warn("Unexpected disconnect.")
                     self.reconnect()
                     continue
-            except socket.timeout as e:
+            except socket.timeout:
                 # A read timeout occurred, just try reading again
                 continue
-            except socket.error as e:
-                self.logger.error("Error while reading socket. Reason: '%s'" % e)
+            except socket.error, e:
+                self.logger.error("Error while reading socket. Reason: '%s'", e)
                 self.reconnect()
                 continue
 
-            buffer += data
-            events = buffer.split("\r\n") # Unframe events from buffer
-            buffer = events.pop() # Put back any incomplete event, often an empty string
+            buf += data
+            events = buf.split("\r\n")  # Unframe events from buffer
+            buf = events.pop()  # Put back any incomplete event, often an empty string
 
             for raw_event in events:
                 args = raw_event.split('\t')
                 if not len(args) == 4:
-                    self.logger.error("Received event has not 4 arguments. Event '%s'" % line)
+                    self.logger.error("Received event has not 4 arguments. Event '%s'" % raw_event)
 
                 e = Event(*args)
                 #self.logger.debug("Received %s" % e)
