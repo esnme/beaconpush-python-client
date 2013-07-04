@@ -157,8 +157,8 @@ class Client(object):
         if not user_ids:
             return
 
-        channel_names = [self._user_id_to_channel_name(userId) for userId in user_ids]
-        self._send_message(message, channel_names)
+        #channel_names = [self._user_id_to_channel_name(userId) for userId in user_ids]
+        self._send_user_message(message, user_ids)
 
     def send_to_channels(self, message, channel_names):
         """
@@ -190,6 +190,16 @@ class Client(object):
         for client, channel_names in clients_and_channels.iteritems():
             greenlets.append(client.sendChannelMessage(channel_names, message))
 
+        self._join_all(greenlets)
+
+    def _send_user_message(self, message, user_ids):
+        greenlets = []
+
+        if self.encoder is not None:
+            message = self.encoder(message)
+
+        clients = self._route_users(user_ids)
+        greenlets = [client.sendUserMessage(client_user_ids, message) for client, client_user_ids in clients.items()]
         self._join_all(greenlets)
 
     def get_users_in_channel(self, channel_name):
