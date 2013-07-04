@@ -295,7 +295,7 @@ class Client(object):
         user_id = str(user_id)
         self._verify_user_id(user_id)
 
-        return "@%s" % user_id
+        return "%s" % user_id
 
     def _get_user_node_index(self, user_id):
         """
@@ -394,6 +394,7 @@ class Client(object):
         return routes
 
     def _validate_channel_prefix(self, channel_name):
+        return
         if channel_name[0] not in CHANNEL_PREFIXES:
             raise Exception("Beaconpush channel name '%s' has invalid or missing prefix. See documentation for more info." % (channel_name, ))
 
@@ -402,6 +403,7 @@ class Client(object):
             raise Exception("Invalid user ID given: '%s'. Must be '%s'. See documentation for more info." % (user_id, USER_ID_PATTERN.pattern))
 
     def _verify_channel_name(self, channel_name):
+        return
         if not CHANNEL_PATTERN.match(channel_name):
             raise Exception("Invalid channel name given: '%s'. Must be '%s'. See documentation for more info." % (channel_name, CHANNEL_PATTERN.pattern))
 
